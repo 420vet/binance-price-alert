@@ -1,1 +1,689 @@
-<!DOCTYPE html><html><body>placeholder</body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Binance Price Monitor</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d1117;
+      --surface:   #161b22;
+      --border:    #30363d;
+      --text:      #c9d1d9;
+      --muted:     #8b949e;
+      --green:     #3fb950;
+      --red:       #f85149;
+      --blue:      #58a6ff;
+      --yellow:    #d29922;
+      --radius:    6px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+      font-size: 14px;
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    header h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    #status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--red);
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+
+    #status-dot.connected { background: var(--green); }
+
+    #status-label {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    #last-update {
+      margin-left: auto;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    main {
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ---- Price table ---- */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead th {
+      padding: 8px 16px;
+      text-align: right;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    thead th:first-child { text-align: left; }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.2s;
+    }
+
+    tbody tr:last-child { border-bottom: none; }
+
+    tbody tr:hover { background: rgba(255,255,255,0.03); }
+
+    tbody td {
+      padding: 10px 16px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    tbody td:first-child { text-align: left; font-weight: 600; }
+
+    .positive { color: var(--green); }
+    .negative { color: var(--red); }
+
+    /* spike alert row animation */
+    @keyframes pulse-red {
+      0%   { background: rgba(248, 81, 73, 0.0); }
+      50%  { background: rgba(248, 81, 73, 0.18); }
+      100% { background: rgba(248, 81, 73, 0.0); }
+    }
+
+    tr.spike-alert {
+      animation: pulse-red 1.4s ease-in-out infinite;
+    }
+
+    /* ---- Config panel ---- */
+    #config-toggle {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: border-color 0.2s;
+    }
+
+    #config-toggle:hover { border-color: var(--blue); }
+
+    #config-panel {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      padding: 16px;
+    }
+
+    #config-panel.open { display: flex; }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    .form-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .form-field label {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .form-field input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 6px 10px;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-field input:focus { border-color: var(--blue); }
+
+    #config-save {
+      align-self: flex-start;
+      background: var(--blue);
+      color: #0d1117;
+      border: none;
+      border-radius: var(--radius);
+      padding: 7px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    #config-save:hover { opacity: 0.85; }
+
+    #config-msg {
+      font-size: 12px;
+      color: var(--green);
+      min-height: 16px;
+    }
+
+    /* ---- Alert history ---- */
+    #alert-list {
+      list-style: none;
+      padding: 0;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+
+    #alert-list li {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+
+    #alert-list li:last-child { border-bottom: none; }
+
+    .alert-time { color: var(--muted); font-size: 11px; white-space: nowrap; }
+    .alert-symbol { font-weight: 600; min-width: 48px; }
+    .alert-pct { font-variant-numeric: tabular-nums; }
+    .alert-win { color: var(--muted); font-size: 11px; }
+
+    #alert-empty {
+      padding: 16px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    /* scrollbar */
+    #alert-list::-webkit-scrollbar { width: 6px; }
+    #alert-list::-webkit-scrollbar-track { background: transparent; }
+    #alert-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* toggle arrow */
+    .arrow { display: inline-block; transition: transform 0.2s; }
+    .arrow.open { transform: rotate(90deg); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div id="status-dot"></div>
+  <span id="status-label">Disconnected</span>
+  <h1>Binance Price Monitor</h1>
+  <span id="last-update"></span>
+</header>
+
+<main>
+
+  <!-- Price table -->
+  <div class="card">
+    <div class="card-header">Live Prices</div>
+    <table id="price-table">
+      <thead>
+        <tr>
+          <th>Symbol</th>
+          <th>USDT</th>
+          <th>EUR</th>
+          <th>% Day</th>
+          <th>% Spike</th>
+        </tr>
+      </thead>
+      <tbody id="price-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- Config panel -->
+  <div class="card">
+    <div class="card-header" style="display:flex;align-items:center;gap:8px;">
+      <button id="config-toggle">
+        <span class="arrow" id="config-arrow">&#9654;</span>
+        Configuration
+      </button>
+      <span id="config-msg"></span>
+    </div>
+    <div id="config-panel">
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="cfg-interval">Poll Interval (s)</label>
+          <input type="number" id="cfg-interval" min="1" step="1" />
+        </div>
+        <div class="form-field">
+          <label for="cfg-threshold">Alert Threshold (%)</label>
+          <input type="number" id="cfg-threshold" step="0.1" />
+        </div>
+        <div class="form-field">
+          <label for="cfg-window">Window (min)</label>
+          <input type="number" id="cfg-window" min="1" step="1" />
+        </div>
+        <div class="form-field">
+          <label for="cfg-reset">Reset Hour (0-23)</label>
+          <input type="number" id="cfg-reset" min="0" max="23" step="1" />
+        </div>
+      </div>
+      <button id="config-save">Save Config</button>
+    </div>
+  </div>
+
+  <!-- Alert history -->
+  <div class="card">
+    <div class="card-header">Alert History</div>
+    <div id="alert-empty">No alerts yet.</div>
+    <ul id="alert-list" style="display:none;"></ul>
+  </div>
+
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ------------------------------------------------------------------ */
+  /* Helpers                                                              */
+  /* ------------------------------------------------------------------ */
+
+  function formatNum(val) {
+    if (val === null || val === undefined || isNaN(val)) return "--";
+    const n = Number(val);
+    if (Math.abs(n) < 0.01) return n.toFixed(6);
+    if (Math.abs(n) < 1)    return n.toFixed(4);
+    return n.toFixed(2);
+  }
+
+  function formatPct(val) {
+    if (val === null || val === undefined || isNaN(val)) return "--";
+    const n = Number(val);
+    return (n >= 0 ? "+" : "") + n.toFixed(2) + "%";
+  }
+
+  function formatTs(ts) {
+    if (!ts) return "";
+    try {
+      const d = new Date(ts);
+      return d.toLocaleTimeString();
+    } catch (_) { return ts; }
+  }
+
+  /* safe text cell */
+  function td(text, extraClass) {
+    const el = document.createElement("td");
+    el.textContent = text;
+    if (extraClass) el.className = extraClass;
+    return el;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Audio beep (AudioContext, no file needed)                           */
+  /* ------------------------------------------------------------------ */
+
+  let audioCtx = null;
+
+  function getAudioCtx() {
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (_) {}
+    }
+    return audioCtx;
+  }
+
+  function beep() {
+    const ctx = getAudioCtx();
+    if (!ctx) return;
+    try {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.4);
+    } catch (_) {}
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Browser notifications                                               */
+  /* ------------------------------------------------------------------ */
+
+  function requestNotifPermission() {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }
+
+  function sendNotification(title, body) {
+    if ("Notification" in window && Notification.permission === "granted") {
+      try { new Notification(title, { body: body, icon: "" }); } catch (_) {}
+    }
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Status indicator                                                    */
+  /* ------------------------------------------------------------------ */
+
+  const statusDot   = document.getElementById("status-dot");
+  const statusLabel = document.getElementById("status-label");
+  const lastUpdate  = document.getElementById("last-update");
+
+  function setConnected(yes) {
+    if (yes) {
+      statusDot.className = "connected";
+      statusLabel.textContent = "Connected";
+    } else {
+      statusDot.className = "";
+      statusLabel.textContent = "Disconnected";
+    }
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Price table                                                         */
+  /* ------------------------------------------------------------------ */
+
+  const priceBody = document.getElementById("price-tbody");
+  // rowMap: symbol -> <tr>
+  const rowMap = {};
+  // track active spikes: symbol -> bool
+  const activeSpikes = {};
+
+  function updatePriceTable(prices, newAlertSymbols) {
+    if (!Array.isArray(prices)) return;
+
+    prices.forEach(function (item) {
+      if (!item || !item.symbol) return;
+
+      const sym     = String(item.symbol);
+      const isSpike = !!item.spike_alert;
+
+      // Detect NEW spike (not active before)
+      const isNewSpike = isSpike && !activeSpikes[sym];
+      activeSpikes[sym] = isSpike;
+
+      if (isNewSpike) {
+        beep();
+        sendNotification(
+          "Spike Alert: " + sym,
+          sym + " " + formatPct(item.change_spike_pct) + " spike detected"
+        );
+      }
+
+      let row = rowMap[sym];
+      if (!row) {
+        row = document.createElement("tr");
+        priceBody.appendChild(row);
+        rowMap[sym] = row;
+      }
+
+      // Clear row
+      while (row.firstChild) row.removeChild(row.firstChild);
+
+      // spike-alert class
+      if (isSpike) {
+        row.className = "spike-alert";
+      } else {
+        row.className = "";
+      }
+
+      // Symbol cell
+      const tdSym = document.createElement("td");
+      tdSym.textContent = sym;
+      row.appendChild(tdSym);
+
+      // USDT
+      row.appendChild(td(formatNum(item.usdt)));
+
+      // EUR
+      row.appendChild(td(formatNum(item.eur)));
+
+      // % Day
+      const dayPct = Number(item.change_day_pct);
+      const dayClass = isNaN(dayPct) ? "" : (dayPct >= 0 ? "positive" : "negative");
+      row.appendChild(td(formatPct(item.change_day_pct), dayClass));
+
+      // % Spike
+      const spikePct = Number(item.change_spike_pct);
+      const spikeClass = isNaN(spikePct) ? "" : (spikePct >= 0 ? "positive" : "negative");
+      const spikeText = formatPct(item.change_spike_pct) + (isSpike ? " \uD83D\uDEA8" : "");
+      row.appendChild(td(spikeText, spikeClass));
+    });
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Alert history                                                       */
+  /* ------------------------------------------------------------------ */
+
+  const alertList  = document.getElementById("alert-list");
+  const alertEmpty = document.getElementById("alert-empty");
+  const MAX_ALERTS = 20;
+
+  function addAlerts(alerts) {
+    if (!Array.isArray(alerts) || alerts.length === 0) return;
+
+    alerts.forEach(function (a) {
+      if (!a) return;
+
+      const li = document.createElement("li");
+
+      const timeSpan = document.createElement("span");
+      timeSpan.className = "alert-time";
+      timeSpan.textContent = formatTs(a.timestamp);
+      li.appendChild(timeSpan);
+
+      const symSpan = document.createElement("span");
+      symSpan.className = "alert-symbol";
+      symSpan.textContent = String(a.symbol || "--");
+      li.appendChild(symSpan);
+
+      const pctSpan = document.createElement("span");
+      pctSpan.className = "alert-pct " + (Number(a.pct) >= 0 ? "positive" : "negative");
+      pctSpan.textContent = formatPct(a.pct);
+      li.appendChild(pctSpan);
+
+      const winSpan = document.createElement("span");
+      winSpan.className = "alert-win";
+      winSpan.textContent = a.window_min ? (String(a.window_min) + "m window") : "";
+      li.appendChild(winSpan);
+
+      // prepend so newest is first
+      if (alertList.firstChild) {
+        alertList.insertBefore(li, alertList.firstChild);
+      } else {
+        alertList.appendChild(li);
+      }
+
+      // trim to max
+      while (alertList.children.length > MAX_ALERTS) {
+        alertList.removeChild(alertList.lastChild);
+      }
+    });
+
+    alertEmpty.style.display = "none";
+    alertList.style.display  = "block";
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Config panel                                                        */
+  /* ------------------------------------------------------------------ */
+
+  const configToggle = document.getElementById("config-toggle");
+  const configPanel  = document.getElementById("config-panel");
+  const configArrow  = document.getElementById("config-arrow");
+  const configMsg    = document.getElementById("config-msg");
+  const cfgInterval  = document.getElementById("cfg-interval");
+  const cfgThreshold = document.getElementById("cfg-threshold");
+  const cfgWindow    = document.getElementById("cfg-window");
+  const cfgReset     = document.getElementById("cfg-reset");
+  const configSave   = document.getElementById("config-save");
+
+  configToggle.addEventListener("click", function () {
+    const open = configPanel.classList.toggle("open");
+    configArrow.classList.toggle("open", open);
+  });
+
+  function loadConfig() {
+    fetch("/config")
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.poll_interval  !== undefined) cfgInterval.value  = data.poll_interval;
+        if (data.alert_threshold !== undefined) cfgThreshold.value = data.alert_threshold;
+        if (data.alert_window_min !== undefined) cfgWindow.value   = data.alert_window_min;
+        if (data.reset_hour      !== undefined) cfgReset.value     = data.reset_hour;
+      })
+      .catch(function () {});
+  }
+
+  configSave.addEventListener("click", function () {
+    const payload = {};
+    if (cfgInterval.value  !== "") payload.poll_interval    = Number(cfgInterval.value);
+    if (cfgThreshold.value !== "") payload.alert_threshold  = Number(cfgThreshold.value);
+    if (cfgWindow.value    !== "") payload.alert_window_min = Number(cfgWindow.value);
+    if (cfgReset.value     !== "") payload.reset_hour       = Number(cfgReset.value);
+
+    fetch("/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        configMsg.textContent = data.status === "ok" ? "Saved." : "Error saving.";
+        configMsg.style.color = data.status === "ok"
+          ? "var(--green)"
+          : "var(--red)";
+        setTimeout(function () { configMsg.textContent = ""; }, 2500);
+      })
+      .catch(function () {
+        configMsg.textContent = "Network error.";
+        configMsg.style.color = "var(--red)";
+        setTimeout(function () { configMsg.textContent = ""; }, 2500);
+      });
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* WebSocket with auto-reconnect                                       */
+  /* ------------------------------------------------------------------ */
+
+  let ws       = null;
+  let retryMs  = 2000;
+  const maxRetryMs = 30000;
+
+  function connect() {
+    const url = "ws://" + location.host + "/ws";
+    ws = new WebSocket(url);
+
+    ws.addEventListener("open", function () {
+      setConnected(true);
+      retryMs = 2000;
+    });
+
+    ws.addEventListener("close", function () {
+      setConnected(false);
+      ws = null;
+      setTimeout(connect, retryMs);
+      retryMs = Math.min(retryMs * 2, maxRetryMs);
+    });
+
+    ws.addEventListener("error", function () {
+      // close event will follow and trigger reconnect
+    });
+
+    ws.addEventListener("message", function (evt) {
+      let data;
+      try { data = JSON.parse(evt.data); } catch (_) { return; }
+      if (!data) return;
+
+      // Update timestamp
+      if (data.timestamp) {
+        const span = document.createElement("span");
+        span.textContent = "Last update: " + formatTs(data.timestamp);
+        lastUpdate.textContent = "";
+        lastUpdate.appendChild(span);
+      }
+
+      // Update prices
+      if (data.prices) {
+        updatePriceTable(data.prices);
+      }
+
+      // New alerts
+      if (data.alerts && data.alerts.length > 0) {
+        addAlerts(data.alerts);
+      }
+    });
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Init                                                                */
+  /* ------------------------------------------------------------------ */
+
+  requestNotifPermission();
+  loadConfig();
+  connect();
+
+  // Resume AudioContext on first user interaction (browser policy)
+  document.addEventListener("click", function () {
+    const ctx = getAudioCtx();
+    if (ctx && ctx.state === "suspended") {
+      ctx.resume();
+    }
+  }, { once: false });
+
+}());
+</script>
+</body>
+</html>

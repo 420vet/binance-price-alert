@@ -3,6 +3,7 @@
 Real-time crypto price monitor with alerts for Binance spot pairs.
 Live candlestick charts, dark/light theme, email & Telegram notifications.
 
+![Version](https://img.shields.io/badge/version-1.0.2-blue)
 ![Python](https://img.shields.io/badge/python-3.11+-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
@@ -33,6 +34,8 @@ Pre-built binaries for every release:
 → [Latest release](https://github.com/oottoo/binance-price-alert/releases/latest)
 
 Just download, place in a folder, and run. A `config.yaml` is created automatically next to the executable on first launch.
+
+> **Windows note:** if SmartScreen warns about an unknown publisher, click *More info → Run anyway*. The binary is unsigned but clean — built without UPX compression specifically to avoid Defender false positives.
 
 ---
 

@@ -1,6 +1,6 @@
 {
   "name": "binance-price-alert",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Real-time Binance price monitor with candlestick charts and alerts",
   "bin": "bin/run.js",
   "files": [

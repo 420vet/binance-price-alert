@@ -45,6 +45,19 @@ app.include_router(router)
 async def index():
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
+def _free_port(start: int = 8000) -> int:
+    import socket
+    for port in range(start, start + 10):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(("", port))
+                return port
+            except OSError:
+                continue
+    return start
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.environ.get("PORT", 0)) or _free_port(8000)
+    print(f"\n  Binance Price Alert → http://localhost:{port}\n")
+    uvicorn.run(app, host="0.0.0.0", port=port)

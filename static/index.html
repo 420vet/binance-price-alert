@@ -1,348 +1,881 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Binance Price Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flag-icons@7.2.3/css/flag-icons.min.css" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    /* ── Dark theme (default) ── */
     :root {
-      --bg:        #0d1117;
-      --surface:   #161b22;
-      --border:    #30363d;
-      --text:      #c9d1d9;
-      --muted:     #8b949e;
-      --green:     #3fb950;
-      --red:       #f85149;
-      --blue:      #58a6ff;
-      --yellow:    #d29922;
-      --radius:    6px;
+      --bg:         #050505;
+      --surface:    #0b0b0b;
+      --border:     #252525;
+      --text:       #c8c8c8;
+      --muted:      #6a6a6a;
+      --green:      #3ddc84;
+      --red:        #e05252;
+      --blue:       #00ccdd;
+      --sk-base:    #111;
+      --sk-hi:      #1e1e1e;
+      --ui-font:    13px;
+      --table-font: 13px;
+      --chart-bg:   #0d1117;
+      --chart-grid: #21262d;
+      --chart-text: #8b949e;
+      --chart-vol:  rgba(33,38,45,.5);
+    }
+
+    /* ── Light theme ── */
+    [data-theme="light"] {
+      --bg:      #f0f2f5;
+      --surface: #ffffff;
+      --border:  #d8dce3;
+      --text:    #1c1c1e;
+      --muted:   #8e8e93;
+      --green:   #1a8a4a;
+      --red:     #c82020;
+      --blue:    #007a99;
+      --sk-base: #e0e4ea;
+      --sk-hi:   #eaedf1;
+      --chart-bg:   #f5f7fa;
+      --chart-grid: #d8dce3;
+      --chart-text: #8e8e93;
+      --chart-vol:  rgba(200,210,220,.35);
     }
 
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
-      font-size: 14px;
+      font-family: 'Share Tech Mono', 'Courier New', monospace;
+      font-size: var(--ui-font);
       min-height: 100vh;
+      transition: background .25s, color .25s;
     }
 
+    /* ── Header ── */
     header {
       background: var(--surface);
       border-bottom: 1px solid var(--border);
-      padding: 12px 20px;
+      padding: 10px 20px;
       display: flex;
       align-items: center;
       gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      transition: background .25s, border-color .25s;
     }
-
     header h1 {
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--text);
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--blue);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
     }
+    header h1::before { content: "> "; color: var(--muted); }
 
     #status-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
+      width: 8px; height: 8px;
       background: var(--red);
       flex-shrink: 0;
       transition: background 0.3s;
     }
-
     #status-dot.connected { background: var(--green); }
+    #status-label { font-size: 11px; color: var(--muted); }
+    #last-update  { font-size: 11px; color: var(--muted); margin-left: auto; }
 
-    #status-label {
-      font-size: 12px;
+    .header-btn {
+      background: none;
+      border: 1px solid var(--border);
       color: var(--muted);
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      font-size: 13px;
+      flex-shrink: 0;
+      transition: border-color 0.2s, color 0.2s;
     }
+    .header-btn:hover { border-color: var(--blue); color: var(--blue); }
 
-    #last-update {
-      margin-left: auto;
-      font-size: 12px;
-      color: var(--muted);
-    }
+    /* ── Layout ── */
+    main { padding: 14px 20px; display: flex; flex-direction: column; gap: 10px; }
 
-    main {
-      padding: 16px 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    /* ---- Price table ---- */
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: var(--radius);
       overflow: hidden;
+      transition: background .25s, border-color .25s;
     }
-
     .card-header {
-      padding: 10px 16px;
+      padding: 7px 16px;
       border-bottom: 1px solid var(--border);
-      font-size: 13px;
-      font-weight: 600;
+      font-size: 10px;
+      font-weight: 400;
       color: var(--muted);
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: .12em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
+    .card-header::before { content: "//"; margin-right: 4px; color: var(--border); }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
+    /* ── Table ── */
+    table { width: 100%; border-collapse: collapse; }
 
     thead th {
-      padding: 8px 16px;
+      padding: 6px 16px;
       text-align: right;
-      font-size: 11px;
-      font-weight: 600;
+      font-size: 10px;
+      font-weight: 400;
       color: var(--muted);
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: .12em;
       border-bottom: 1px solid var(--border);
       background: var(--surface);
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
     }
-
     thead th:first-child { text-align: left; }
+    thead th:hover { color: var(--text); }
+    thead th.sort-asc::after  { content: " ▲"; color: var(--blue); }
+    thead th.sort-desc::after { content: " ▼"; color: var(--blue); }
 
     tbody tr {
       border-bottom: 1px solid var(--border);
-      transition: background 0.2s;
+      transition: background 0.1s;
+      cursor: pointer;
     }
-
     tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover    { background: rgba(128,128,128,0.05); }
+    tbody tr.selected { background: rgba(0,204,221,0.07) !important; }
 
-    tbody tr:hover { background: rgba(255,255,255,0.03); }
+    .remove-btn {
+      float: right;
+      background: none;
+      border: none;
+      color: var(--red);
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      font-size: 11px;
+      padding: 0 2px 0 8px;
+      line-height: 1;
+      transition: opacity 0.1s;
+    }
+    tbody tr:hover .remove-btn { opacity: 1; pointer-events: auto; }
+    .remove-btn:hover { color: #ff6b6b; }
+
+    .add-token-cell { padding: 6px 16px; }
+    .add-token-btn {
+      background: none;
+      border: 1px dashed var(--border);
+      color: var(--muted);
+      cursor: pointer;
+      padding: 5px 0;
+      font-size: var(--ui-font);
+      font-family: inherit;
+      letter-spacing: 0.08em;
+      width: 100%;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .add-token-btn:hover { border-color: var(--blue); color: var(--blue); }
+    .add-token-input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 4px 8px;
+      font-size: 12px;
+      font-family: inherit;
+      width: 130px;
+      text-transform: uppercase;
+      outline: none;
+    }
+    .add-token-input:focus { border-color: var(--blue); }
+    .add-token-confirm, .add-token-cancel {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      cursor: pointer;
+      padding: 4px 8px;
+      font-size: 11px;
+      font-family: inherit;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .add-token-confirm:hover { border-color: var(--green); color: var(--green); }
+    .add-token-cancel:hover  { border-color: var(--red);   color: var(--red); }
 
     tbody td {
-      padding: 10px 16px;
+      padding: 8px 16px;
       text-align: right;
+      font-size: var(--table-font);
       font-variant-numeric: tabular-nums;
     }
+    tbody td:first-child { text-align: left; }
 
-    tbody td:first-child { text-align: left; font-weight: 600; }
+    .token-logo {
+      width: 16px; height: 16px;
+      margin-right: 8px;
+      vertical-align: middle;
+      object-fit: contain;
+      opacity: 0.8;
+    }
 
     .positive { color: var(--green); }
     .negative { color: var(--red); }
 
-    /* spike alert row animation */
     @keyframes pulse-red {
-      0%   { background: rgba(248, 81, 73, 0.0); }
-      50%  { background: rgba(248, 81, 73, 0.18); }
-      100% { background: rgba(248, 81, 73, 0.0); }
+      0%,100% { background: rgba(224,82,82,0); }
+      50%      { background: rgba(224,82,82,.10); }
     }
+    tr.spike-alert { animation: pulse-red 1.4s ease-in-out infinite; }
 
-    tr.spike-alert {
-      animation: pulse-red 1.4s ease-in-out infinite;
+    /* ── Skeleton ── */
+    @keyframes shimmer {
+      0%   { background-position: -400% 0; }
+      100% { background-position:  400% 0; }
     }
+    .skeleton-cell {
+      background: linear-gradient(90deg, var(--sk-base) 25%, var(--sk-hi) 50%, var(--sk-base) 75%);
+      background-size: 400% 100%;
+      animation: shimmer 5s infinite;
+      height: 12px;
+      display: inline-block;
+      opacity: 0.5;
+    }
+    .skeleton-cell.w-sm  { width: 40px; }
+    .skeleton-cell.w-md  { width: 70px; }
+    .skeleton-cell.w-lg  { width: 100px; }
 
-    /* ---- Config panel ---- */
-    #config-toggle {
+    /* ── Chart panel ── */
+    .tf-btn {
       background: none;
       border: 1px solid var(--border);
-      border-radius: var(--radius);
-      color: var(--text);
-      padding: 6px 12px;
+      color: var(--muted);
+      padding: 2px 7px;
+      font-size: 10px;
+      font-family: inherit;
       cursor: pointer;
-      font-size: 13px;
+      transition: border-color .15s, color .15s;
+    }
+    .tf-btn:hover  { border-color: var(--blue); color: var(--text); }
+    .tf-btn.active { border-color: var(--blue); color: var(--blue); }
+
+    #chart-close {
+      margin-left: auto;
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 12px;
+      padding: 2px 6px;
+    }
+    #chart-close:hover { color: var(--text); }
+
+    #chart-wrap { position: relative; }
+    #price-chart { width: 100%; display: block; }
+
+    #chart-tooltip {
+      position: absolute;
+      top: 8px; left: 80px;
+      background: rgba(11,11,11,.96);
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      font-size: 10px;
+      color: var(--text);
+      pointer-events: none;
+      white-space: nowrap;
+      display: none;
+      font-family: inherit;
+    }
+    [data-theme="light"] #chart-tooltip { background: rgba(255,255,255,.96); }
+
+    #chart-skeleton {
+      position: absolute;
+      inset: 0;
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 20px 72px 40px 72px;
+    }
+    .chart-sk-line {
+      background: linear-gradient(90deg, var(--sk-base) 25%, var(--sk-hi) 50%, var(--sk-base) 75%);
+      background-size: 400% 100%;
+      animation: shimmer 5s infinite;
+      opacity: 0.5;
+    }
+
+    /* ── Alerts ── */
+    #alert-list {
+      list-style: none;
+      max-height: 240px;
+      overflow-y: auto;
+    }
+    #alert-list li,
+    #alert-list-header {
+      display: grid;
+      grid-template-columns: 80px 130px 72px 1fr;
+      column-gap: 20px;
+      align-items: center;
+      padding: 7px 20px;
+    }
+    #alert-list li {
+      border-bottom: 1px solid var(--border);
+      font-size: var(--ui-font);
+    }
+    #alert-list li:last-child { border-bottom: none; }
+    #alert-list-header {
+      padding-top: 5px;
+      padding-bottom: 5px;
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      border-bottom: 1px solid var(--border);
+    }
+    .alert-time   { color: var(--muted); font-size: 10px; white-space: nowrap; }
+    .alert-symbol { display: flex; align-items: center; gap: 6px; color: var(--blue); }
+    .alert-pct    { font-variant-numeric: tabular-nums; }
+    .alert-win    { color: var(--muted); font-size: 10px; }
+    #alert-empty  { padding: 14px; color: var(--muted); font-size: var(--ui-font); text-align: center; }
+    #alert-list::-webkit-scrollbar { width: 4px; }
+    #alert-list::-webkit-scrollbar-track { background: transparent; }
+    #alert-list::-webkit-scrollbar-thumb { background: var(--border); }
+
+    /* ── Config Modal ── */
+    #modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.72);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    [data-theme="light"] #modal-overlay { background: rgba(0,0,0,.4); }
+    #modal-overlay.open { display: flex; }
+
+    #modal-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      width: min(440px, 92vw);
+      padding: 0;
+      box-shadow: 0 0 60px rgba(0,0,0,.9);
+      animation: modal-in .12s ease;
+    }
+    @keyframes modal-in {
+      from { transform: translateY(-8px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+    .modal-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
-      gap: 6px;
-      transition: border-color 0.2s;
+      justify-content: space-between;
     }
-
-    #config-toggle:hover { border-color: var(--blue); }
-
-    #config-panel {
-      display: none;
-      flex-direction: column;
-      gap: 12px;
-      padding: 16px;
+    .modal-header h2 {
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--blue);
     }
+    .modal-header h2::before { content: "> "; color: var(--muted); }
+    #modal-close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 2px 4px;
+      line-height: 1;
+    }
+    #modal-close:hover { color: var(--text); }
 
-    #config-panel.open { display: flex; }
+    .modal-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
 
     .form-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 12px;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
     }
-
-    .form-field {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
+    .form-field { display: flex; flex-direction: column; gap: 4px; }
     .form-field label {
-      font-size: 11px;
+      font-size: 10px;
       color: var(--muted);
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: .12em;
     }
-
     .form-field input {
       background: var(--bg);
       border: 1px solid var(--border);
-      border-radius: var(--radius);
       color: var(--text);
-      padding: 6px 10px;
-      font-size: 13px;
+      padding: 6px 8px;
+      font-size: 12px;
+      font-family: inherit;
       outline: none;
-      transition: border-color 0.2s;
+      transition: border-color .15s;
     }
-
     .form-field input:focus { border-color: var(--blue); }
 
-    #config-save {
-      align-self: flex-start;
-      background: var(--blue);
-      color: #0d1117;
-      border: none;
-      border-radius: var(--radius);
-      padding: 7px 16px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: opacity 0.2s;
-    }
-
-    #config-save:hover { opacity: 0.85; }
-
-    #config-msg {
-      font-size: 12px;
-      color: var(--green);
-      min-height: 16px;
-    }
-
-    /* ---- Alert history ---- */
-    #alert-list {
-      list-style: none;
-      padding: 0;
-      max-height: 280px;
-      overflow-y: auto;
-    }
-
-    #alert-list li {
+    /* ── Font size sliders ── */
+    .font-sliders {
       display: flex;
-      align-items: baseline;
+      flex-direction: column;
       gap: 10px;
-      padding: 8px 16px;
-      border-bottom: 1px solid var(--border);
-      font-size: 13px;
+      padding-top: 4px;
+      border-top: 1px solid var(--border);
     }
-
-    #alert-list li:last-child { border-bottom: none; }
-
-    .alert-time { color: var(--muted); font-size: 11px; white-space: nowrap; }
-    .alert-symbol { font-weight: 600; min-width: 48px; }
-    .alert-pct { font-variant-numeric: tabular-nums; }
-    .alert-win { color: var(--muted); font-size: 11px; }
-
-    #alert-empty {
-      padding: 16px;
+    .slider-row { display: flex; flex-direction: column; gap: 6px; }
+    .slider-row label {
+      font-size: 10px;
       color: var(--muted);
-      font-size: 13px;
-      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      display: flex;
+      justify-content: space-between;
+    }
+    .slider-row label span { color: var(--blue); }
+    .font-range {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 2px;
+      background: var(--border);
+      outline: none;
+      cursor: pointer;
+    }
+    .font-range::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 12px; height: 12px;
+      background: var(--blue);
+      cursor: pointer;
+    }
+    .font-range::-moz-range-thumb {
+      width: 12px; height: 12px;
+      background: var(--blue);
+      border: none;
+      cursor: pointer;
     }
 
-    /* scrollbar */
-    #alert-list::-webkit-scrollbar { width: 6px; }
-    #alert-list::-webkit-scrollbar-track { background: transparent; }
-    #alert-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    /* ── Language custom dropdown ── */
+    .lang-dropdown { position: relative; user-select: none; }
+    .lang-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 8px;
+      font-size: 12px;
+      font-family: inherit;
+      cursor: pointer;
+      width: 100%;
+      transition: border-color .15s;
+    }
+    .lang-btn:hover, .lang-dropdown.open .lang-btn { border-color: var(--blue); }
+    .lang-btn-label { flex: 1; text-align: left; }
+    .lang-btn-arrow { font-size: 8px; color: var(--muted); transition: transform .15s; }
+    .lang-dropdown.open .lang-btn-arrow { transform: rotate(180deg); }
 
-    /* toggle arrow */
-    .arrow { display: inline-block; transition: transform 0.2s; }
-    .arrow.open { transform: rotate(90deg); }
+    .lang-menu {
+      position: absolute;
+      top: calc(100% + 2px);
+      left: 0; right: 0;
+      background: var(--surface);
+      border: 1px solid var(--blue);
+      z-index: 200;
+      display: none;
+    }
+    .lang-dropdown.open .lang-menu { display: block; }
+
+    .lang-opt {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 8px;
+      font-size: 12px;
+      font-family: inherit;
+      color: var(--text);
+      cursor: pointer;
+      transition: background .1s;
+    }
+    .lang-opt:hover    { background: rgba(0,204,221,0.08); }
+    .lang-opt.selected { color: var(--blue); }
+    .fi { flex-shrink: 0; }
+
+    /* ── Modal footer ── */
+    .modal-footer {
+      padding: 10px 16px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-top: 1px solid var(--border);
+    }
+    #config-save {
+      background: var(--blue);
+      color: #000;
+      border: none;
+      padding: 6px 18px;
+      font-size: 11px;
+      font-family: inherit;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: opacity .15s;
+    }
+    #config-save:hover { opacity: .8; }
+    #config-msg { font-size: 11px; min-height: 14px; }
   </style>
 </head>
 <body>
 
+<!-- Header -->
 <header>
   <div id="status-dot"></div>
   <span id="status-label">Disconnected</span>
   <h1>Binance Price Monitor</h1>
   <span id="last-update"></span>
+  <button id="theme-btn" class="header-btn" title="Toggle theme">
+    <i id="theme-icon" class="fa-solid fa-moon"></i>
+  </button>
+  <button id="config-btn" class="header-btn" title="Settings">
+    <i class="fa-solid fa-gear"></i>
+  </button>
 </header>
 
 <main>
 
   <!-- Price table -->
   <div class="card">
-    <div class="card-header">Live Prices</div>
+    <div class="card-header" id="live-prices-header">Live prices</div>
     <table id="price-table">
       <thead>
         <tr>
-          <th>Symbol</th>
-          <th>USDT</th>
-          <th>EUR</th>
-          <th>% Day</th>
-          <th>% Spike</th>
+          <th data-col="symbol" id="th-symbol">Symbol</th>
+          <th data-col="usdt"   id="th-usdt">USDT ($)</th>
+          <th data-col="eur"    id="th-eur">EUR (€)</th>
+          <th data-col="change_day_pct"   id="th-day">% Day</th>
+          <th data-col="change_spike_pct" id="th-spike">% Spike</th>
         </tr>
       </thead>
       <tbody id="price-tbody"></tbody>
     </table>
   </div>
 
-  <!-- Config panel -->
-  <div class="card">
-    <div class="card-header" style="display:flex;align-items:center;gap:8px;">
-      <button id="config-toggle">
-        <span class="arrow" id="config-arrow">&#9654;</span>
-        Configuration
-      </button>
-      <span id="config-msg"></span>
-    </div>
-    <div id="config-panel">
-      <div class="form-grid">
-        <div class="form-field">
-          <label for="cfg-interval">Poll Interval (s)</label>
-          <input type="number" id="cfg-interval" min="1" step="1" />
-        </div>
-        <div class="form-field">
-          <label for="cfg-threshold">Alert Threshold (%)</label>
-          <input type="number" id="cfg-threshold" step="0.1" />
-        </div>
-        <div class="form-field">
-          <label for="cfg-window">Window (min)</label>
-          <input type="number" id="cfg-window" min="1" step="1" />
-        </div>
-        <div class="form-field">
-          <label for="cfg-reset">Reset Hour (0-23)</label>
-          <input type="number" id="cfg-reset" min="0" max="23" step="1" />
-        </div>
+  <!-- Chart panel -->
+  <div class="card" id="chart-card" style="display:none;">
+    <div class="card-header">
+      <i class="fa-solid fa-chart-candlestick" style="color:var(--blue);"></i>
+      <span id="chart-title">—</span>
+      <div style="display:flex;gap:6px;margin-left:auto;">
+        <button class="tf-btn" data-tf="1m">1m</button>
+        <button class="tf-btn active" data-tf="5m">5m</button>
+        <button class="tf-btn" data-tf="15m">15m</button>
+        <button class="tf-btn" data-tf="1h">1h</button>
+        <button class="tf-btn" data-tf="4h">4h</button>
+        <button class="tf-btn" data-tf="1d">1d</button>
       </div>
-      <button id="config-save">Save Config</button>
+      <button id="chart-close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="chart-wrap">
+      <canvas id="price-chart"></canvas>
+      <div id="chart-tooltip"></div>
+      <div id="chart-skeleton">
+        <div class="chart-sk-line" style="height:180px;"></div>
+        <div class="chart-sk-line" style="height:60px;margin-top:8px;opacity:.6;"></div>
+        <div class="chart-sk-line" style="height:12px;margin-top:4px;opacity:.3;"></div>
+      </div>
     </div>
   </div>
 
   <!-- Alert history -->
   <div class="card">
-    <div class="card-header">Alert History</div>
+    <div class="card-header">
+      <i class="fa-solid fa-bell" style="color:var(--yellow,#d29922);"></i>
+      <span id="alerts-header">Recent alerts</span>
+    </div>
     <div id="alert-empty">No alerts yet.</div>
+    <div id="alert-list-header" style="display:none;">
+      <span>Time</span><span>Symbol</span><span>Change</span><span>Window</span>
+    </div>
     <ul id="alert-list" style="display:none;"></ul>
   </div>
 
 </main>
 
+<footer style="text-align:center;padding:18px 0 14px;font-size:11px;color:var(--muted);letter-spacing:.04em;">
+  v1.0.0 &nbsp;·&nbsp; Made with ♥ by <a href="https://420.vet" target="_blank" rel="noopener" style="color:var(--muted);text-decoration:none;">420.vet</a>
+</footer>
+
+<!-- Config Modal -->
+<div id="modal-overlay">
+  <div id="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-header">
+      <h2 id="modal-title">
+        <i class="fa-solid fa-gear" style="margin-right:8px;color:var(--blue);"></i>
+        <span id="modal-title-text">Settings</span>
+      </h2>
+      <button id="modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Server config -->
+      <div class="form-grid">
+        <div class="form-field">
+          <label id="lbl-interval">Interval (sec)</label>
+          <input type="number" id="cfg-interval" min="1" step="1" />
+        </div>
+        <div class="form-field">
+          <label id="lbl-threshold">Alert threshold (%)</label>
+          <input type="number" id="cfg-threshold" step="0.1" />
+        </div>
+        <div class="form-field">
+          <label id="lbl-window">Alert window (min)</label>
+          <input type="number" id="cfg-window" min="1" step="1" />
+        </div>
+        <div class="form-field">
+          <label id="lbl-reset">Reset hour (0–23)</label>
+          <input type="number" id="cfg-reset" min="0" max="23" step="1" />
+        </div>
+      </div>
+
+      <!-- Font sizes -->
+      <div class="font-sliders">
+        <div class="slider-row">
+          <label>
+            <span id="lbl-table-font">Table font</span>
+            <span id="cfg-table-font-val">13px</span>
+          </label>
+          <input type="range" id="cfg-table-font" class="font-range" min="10" max="24" step="1" value="13" />
+        </div>
+        <div class="slider-row">
+          <label>
+            <span id="lbl-ui-font">UI font</span>
+            <span id="cfg-ui-font-val">13px</span>
+          </label>
+          <input type="range" id="cfg-ui-font" class="font-range" min="10" max="24" step="1" value="13" />
+        </div>
+      </div>
+
+      <!-- Language -->
+      <div class="form-field">
+        <label id="lbl-language">Language</label>
+        <div class="lang-dropdown" id="lang-dropdown">
+          <button class="lang-btn" id="lang-btn" type="button">
+            <span class="fi fi-gb fis" style="border-radius:2px;" id="lang-btn-flag"></span>
+            <span class="lang-btn-label" id="lang-btn-label">English</span>
+            <span class="lang-btn-arrow">&#9660;</span>
+          </button>
+          <div class="lang-menu" id="lang-menu">
+            <div class="lang-opt selected" data-lang="en">
+              <span class="fi fi-gb fis" style="border-radius:2px;"></span>English
+            </div>
+            <div class="lang-opt" data-lang="es">
+              <span class="fi fi-es fis" style="border-radius:2px;"></span>Español
+            </div>
+            <div class="lang-opt" data-lang="fr">
+              <span class="fi fi-fr fis" style="border-radius:2px;"></span>Français
+            </div>
+            <div class="lang-opt" data-lang="it">
+              <span class="fi fi-it fis" style="border-radius:2px;"></span>Italiano
+            </div>
+            <div class="lang-opt" data-lang="zh">
+              <span class="fi fi-cn fis" style="border-radius:2px;"></span>中文
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button id="config-save">Save</button>
+      <span id="config-msg"></span>
+    </div>
+  </div>
+</div>
+
 <script>
 (function () {
   "use strict";
 
-  /* ------------------------------------------------------------------ */
-  /* Helpers                                                              */
-  /* ------------------------------------------------------------------ */
+  /* ── i18n ── */
+
+  var LANGS = {
+    en: { flagCode: "gb", name: "English",
+      disconnected: "Disconnected", connected: "Connected",
+      liveHeader: "Live prices",
+      thSymbol: "Symbol", thUsdt: "USDT ($)", thEur: "EUR (€)", thDay: "% Day", thSpike: "% Spike",
+      alertsHeader: "Recent alerts", noAlerts: "No alerts yet.",
+      addToken: "Add token", tokenPlaceholder: "e.g. SOL",
+      alreadyExists: "already exists", removeToken: "Remove token",
+      chartError: "— error loading data",
+      modalTitle: "Settings",
+      lblInterval: "Interval (sec)", lblThreshold: "Alert threshold (%)",
+      lblWindow: "Alert window (min)", lblReset: "Reset hour (0\u201323)",
+      lblTableFont: "Table font", lblUiFont: "UI font", lblLanguage: "Language",
+      save: "Save", saved: "Saved.", saveError: "Error saving.", networkError: "Network error.",
+      windowMin: "m window", configBtn: "Settings", closeLabel: "Close",
+      lastUpdatePrefix: "Updated: "
+    },
+    es: { flagCode: "es", name: "Espa\u00f1ol",
+      disconnected: "Desconectado", connected: "Conectado",
+      liveHeader: "Precios en vivo",
+      thSymbol: "Symbol", thUsdt: "USDT ($)", thEur: "EUR (\u20ac)", thDay: "% D\u00eda", thSpike: "% Spike",
+      alertsHeader: "Alertas recientes", noAlerts: "Sin alertas a\u00fan.",
+      addToken: "A\u00f1adir token", tokenPlaceholder: "Ej: SOL",
+      alreadyExists: "ya existe", removeToken: "Eliminar token",
+      chartError: "— error cargando datos",
+      modalTitle: "Configuraci\u00f3n",
+      lblInterval: "Intervalo (seg)", lblThreshold: "Umbral alerta (%)",
+      lblWindow: "Ventana alerta (min)", lblReset: "Hora reset (0\u201323)",
+      lblTableFont: "Fuente tabla", lblUiFont: "Fuente UI", lblLanguage: "Idioma",
+      save: "Guardar", saved: "Guardado.", saveError: "Error al guardar.", networkError: "Error de red.",
+      windowMin: "m ventana", configBtn: "Configuraci\u00f3n", closeLabel: "Cerrar",
+      lastUpdatePrefix: "Actualizado: "
+    },
+    fr: { flagCode: "fr", name: "Fran\u00e7ais",
+      disconnected: "D\u00e9connect\u00e9", connected: "Connect\u00e9",
+      liveHeader: "Prix en direct",
+      thSymbol: "Symbole", thUsdt: "USDT ($)", thEur: "EUR (\u20ac)", thDay: "% Jour", thSpike: "% Pic",
+      alertsHeader: "Alertes r\u00e9centes", noAlerts: "Aucune alerte.",
+      addToken: "Ajouter token", tokenPlaceholder: "ex. SOL",
+      alreadyExists: "existe d\u00e9j\u00e0", removeToken: "Supprimer token",
+      chartError: "— erreur de chargement",
+      modalTitle: "Param\u00e8tres",
+      lblInterval: "Intervalle (sec)", lblThreshold: "Seuil alerte (%)",
+      lblWindow: "Fen\u00eatre alerte (min)", lblReset: "Heure reset (0\u201323)",
+      lblTableFont: "Police tableau", lblUiFont: "Police UI", lblLanguage: "Langue",
+      save: "Enregistrer", saved: "Enregistr\u00e9.", saveError: "Erreur d'enregistrement.", networkError: "Erreur r\u00e9seau.",
+      windowMin: "m fen\u00eatre", configBtn: "Param\u00e8tres", closeLabel: "Fermer",
+      lastUpdatePrefix: "Mis \u00e0 jour : "
+    },
+    it: { flagCode: "it", name: "Italiano",
+      disconnected: "Disconnesso", connected: "Connesso",
+      liveHeader: "Prezzi in diretta",
+      thSymbol: "Simbolo", thUsdt: "USDT ($)", thEur: "EUR (\u20ac)", thDay: "% Giorno", thSpike: "% Picco",
+      alertsHeader: "Avvisi recenti", noAlerts: "Nessun avviso.",
+      addToken: "Aggiungi token", tokenPlaceholder: "es. SOL",
+      alreadyExists: "gi\u00e0 esiste", removeToken: "Rimuovi token",
+      chartError: "— errore caricamento dati",
+      modalTitle: "Impostazioni",
+      lblInterval: "Intervallo (sec)", lblThreshold: "Soglia avviso (%)",
+      lblWindow: "Finestra avviso (min)", lblReset: "Ora reset (0\u201323)",
+      lblTableFont: "Font tabella", lblUiFont: "Font UI", lblLanguage: "Lingua",
+      save: "Salva", saved: "Salvato.", saveError: "Errore salvataggio.", networkError: "Errore di rete.",
+      windowMin: "m finestra", configBtn: "Impostazioni", closeLabel: "Chiudi",
+      lastUpdatePrefix: "Aggiornato: "
+    },
+    zh: { flagCode: "cn", name: "\u4e2d\u6587",
+      disconnected: "\u5df2\u65ad\u5f00", connected: "\u5df2\u8fde\u63a5",
+      liveHeader: "\u5b9e\u65f6\u4ef7\u683c",
+      thSymbol: "\u4ee3\u53f7", thUsdt: "USDT ($)", thEur: "EUR (\u20ac)", thDay: "% \u65e5\u53d8", thSpike: "% \u6ce2\u52a8",
+      alertsHeader: "\u8fd1\u671f\u8b66\u62a5", noAlerts: "\u6682\u65e0\u8b66\u62a5\u3002",
+      addToken: "\u6dfb\u52a0\u4ee3\u5e01", tokenPlaceholder: "\u4f8b: SOL",
+      alreadyExists: "\u5df2\u5b58\u5728", removeToken: "\u5220\u9664\u4ee3\u5e01",
+      chartError: "— \u52a0\u8f7d\u6570\u636e\u51fa\u9519",
+      modalTitle: "\u8bbe\u7f6e",
+      lblInterval: "\u95f4\u9694 (\u79d2)", lblThreshold: "\u9884\u8b66\u9619\u503c (%)",
+      lblWindow: "\u9884\u8b66\u7a97\u53e3 (\u5206\u949f)", lblReset: "\u91cd\u7f6e\u65f6\u95f4 (0\u201323)",
+      lblTableFont: "\u8868\u683c\u5b57\u4f53", lblUiFont: "\u754c\u9762\u5b57\u4f53", lblLanguage: "\u8bed\u8a00",
+      save: "\u4fdd\u5b58", saved: "\u5df2\u4fdd\u5b58\u3002", saveError: "\u4fdd\u5b58\u5931\u8d25\u3002", networkError: "\u7f51\u7edc\u9519\u8bef\u3002",
+      windowMin: "m \u7a97\u53e3", configBtn: "\u8bbe\u7f6e", closeLabel: "\u5173\u95ed",
+      lastUpdatePrefix: "\u66f4\u65b0\u4e8e: "
+    }
+  };
+
+  var currentLang = localStorage.getItem("uiLang") || "en";
+
+  function t(key) {
+    var d = LANGS[currentLang] || LANGS.en;
+    return d[key] !== undefined ? d[key] : (LANGS.en[key] || key);
+  }
+
+  function applyLang(code) {
+    currentLang = code;
+    document.documentElement.lang = code;
+
+    document.getElementById("live-prices-header").textContent  = t("liveHeader");
+    document.getElementById("th-symbol").textContent           = t("thSymbol");
+    document.getElementById("th-usdt").textContent             = t("thUsdt");
+    document.getElementById("th-eur").textContent              = t("thEur");
+    document.getElementById("th-day").textContent              = t("thDay");
+    document.getElementById("th-spike").textContent            = t("thSpike");
+    document.getElementById("alerts-header").textContent       = t("alertsHeader");
+    document.getElementById("alert-empty").textContent         = t("noAlerts");
+    document.getElementById("modal-title-text").textContent    = t("modalTitle");
+    document.getElementById("lbl-interval").textContent        = t("lblInterval");
+    document.getElementById("lbl-threshold").textContent       = t("lblThreshold");
+    document.getElementById("lbl-window").textContent          = t("lblWindow");
+    document.getElementById("lbl-reset").textContent           = t("lblReset");
+    document.getElementById("lbl-table-font").textContent      = t("lblTableFont");
+    document.getElementById("lbl-ui-font").textContent         = t("lblUiFont");
+    document.getElementById("lbl-language").textContent        = t("lblLanguage");
+    document.getElementById("config-save").textContent         = t("save");
+    document.getElementById("modal-close").setAttribute("aria-label", t("closeLabel"));
+    document.getElementById("config-btn").setAttribute("title",       t("configBtn"));
+
+    /* update lang dropdown button */
+    var ld = LANGS[code] || LANGS.en;
+    document.getElementById("lang-btn-flag").className  = "fi fi-" + ld.flagCode + " fis";
+    document.getElementById("lang-btn-label").textContent = ld.name;
+    document.querySelectorAll(".lang-opt").forEach(function (o) {
+      o.classList.toggle("selected", o.getAttribute("data-lang") === code);
+    });
+
+    /* reflect current connection state */
+    var dot = document.getElementById("status-dot");
+    statusLabel.textContent = dot.classList.contains("connected") ? t("connected") : t("disconnected");
+  }
+
+  /* ── Theme ── */
+
+  var currentTheme = localStorage.getItem("uiTheme") || "dark";
+  var themeBtn  = document.getElementById("theme-btn");
+  var themeIcon = document.getElementById("theme-icon");
+
+  function applyTheme(theme) {
+    currentTheme = theme;
+    document.documentElement.setAttribute("data-theme", theme);
+    themeIcon.className = theme === "dark" ? "fa-solid fa-moon" : "fa-solid fa-circle-half-stroke";
+    try { if (chartSym && chartCandles.length) resizeAndDraw(); } catch(e) {}
+  }
+
+  applyTheme(currentTheme);
+
+  themeBtn.addEventListener("click", function () {
+    var next = currentTheme === "dark" ? "light" : "dark";
+    applyTheme(next);
+    localStorage.setItem("uiTheme", next);
+  });
+
+  /* ── Helpers ── */
 
   function formatNum(val) {
     if (val === null || val === undefined || isNaN(val)) return "--";
     const n = Number(val);
-    if (Math.abs(n) < 0.01) return n.toFixed(6);
-    if (Math.abs(n) < 1)    return n.toFixed(4);
-    return n.toFixed(2);
+    let d;
+    if (Math.abs(n) < 0.01)  d = 6;
+    else if (Math.abs(n) < 1) d = 4;
+    else                      d = 2;
+    return new Intl.NumberFormat("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }).format(n);
+  }
+
+  function formatPrice(val, sym) {
+    const s = formatNum(val);
+    return s === "--" ? "--" : sym + s;
   }
 
   function formatPct(val) {
@@ -353,335 +886,635 @@
 
   function formatTs(ts) {
     if (!ts) return "";
-    try {
-      const d = new Date(ts);
-      return d.toLocaleTimeString();
-    } catch (_) { return ts; }
+    try { return new Date(ts).toLocaleTimeString(); } catch (_) { return ts; }
   }
 
-  /* safe text cell */
-  function td(text, extraClass) {
+  function td(text, cls) {
     const el = document.createElement("td");
     el.textContent = text;
-    if (extraClass) el.className = extraClass;
+    if (cls) el.className = cls;
     return el;
   }
 
-  /* ------------------------------------------------------------------ */
-  /* Audio beep (AudioContext, no file needed)                           */
-  /* ------------------------------------------------------------------ */
+  /* ── Token logos ── */
+
+  function tokenLogo(sym) {
+    var img = document.createElement("img");
+    img.src = "/logo/" + sym.toLowerCase();
+    img.alt = sym;
+    img.className = "token-logo";
+    img.addEventListener("error", function () { img.style.display = "none"; });
+    return img;
+  }
+
+  /* ── Audio ── */
 
   let audioCtx = null;
-
-  function getAudioCtx() {
-    if (!audioCtx) {
-      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (_) {}
-    }
+  function getAudio() {
+    if (!audioCtx) try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (_) {}
     return audioCtx;
   }
-
   function beep() {
-    const ctx = getAudioCtx();
-    if (!ctx) return;
+    const ctx = getAudio(); if (!ctx) return;
     try {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(880, ctx.currentTime);
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.4);
+      const osc = ctx.createOscillator(), g = ctx.createGain();
+      osc.connect(g); g.connect(ctx.destination);
+      osc.type = "sine"; osc.frequency.setValueAtTime(880, ctx.currentTime);
+      g.gain.setValueAtTime(0.3, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      osc.start(); osc.stop(ctx.currentTime + 0.4);
     } catch (_) {}
   }
+  document.addEventListener("click", function () {
+    const c = getAudio(); if (c && c.state === "suspended") c.resume();
+  });
 
-  /* ------------------------------------------------------------------ */
-  /* Browser notifications                                               */
-  /* ------------------------------------------------------------------ */
+  /* ── Notifications ── */
 
-  function requestNotifPermission() {
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
-    }
+  if ("Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission();
   }
-
-  function sendNotification(title, body) {
+  function notify(title, body) {
     if ("Notification" in window && Notification.permission === "granted") {
-      try { new Notification(title, { body: body, icon: "" }); } catch (_) {}
+      try { new Notification(title, { body: body }); } catch (_) {}
     }
   }
 
-  /* ------------------------------------------------------------------ */
-  /* Status indicator                                                    */
-  /* ------------------------------------------------------------------ */
+  /* ── Status ── */
 
   const statusDot   = document.getElementById("status-dot");
   const statusLabel = document.getElementById("status-label");
   const lastUpdate  = document.getElementById("last-update");
 
   function setConnected(yes) {
-    if (yes) {
-      statusDot.className = "connected";
-      statusLabel.textContent = "Connected";
-    } else {
-      statusDot.className = "";
-      statusLabel.textContent = "Disconnected";
-    }
+    statusDot.className     = yes ? "connected" : "";
+    statusLabel.textContent = yes ? t("connected") : t("disconnected");
   }
 
-  /* ------------------------------------------------------------------ */
-  /* Price table                                                         */
-  /* ------------------------------------------------------------------ */
+  /* ── Skeleton table ── */
 
-  const priceBody = document.getElementById("price-tbody");
-  // rowMap: symbol -> <tr>
-  const rowMap = {};
-  // track active spikes: symbol -> bool
+  const priceBody  = document.getElementById("price-tbody");
+  const SYMBOLS    = ["BNB", "BTC", "VET", "VTHO", "ETH"];
+  const COL_WIDTHS = ["w-sm", "w-lg", "w-lg", "w-md", "w-md"];
+
+  function showTableSkeleton() {
+    while (priceBody.firstChild) priceBody.removeChild(priceBody.firstChild);
+    SYMBOLS.forEach(function () {
+      const tr = document.createElement("tr");
+      tr.className = "skeleton-row";
+      COL_WIDTHS.forEach(function (w) {
+        const cell = document.createElement("td");
+        const sk   = document.createElement("span");
+        sk.className = "skeleton-cell " + w;
+        cell.appendChild(sk);
+        tr.appendChild(cell);
+      });
+      priceBody.appendChild(tr);
+    });
+  }
+
+  showTableSkeleton();
+  let tableReady = false;
+
+  /* ── Full config store ── */
+
+  var fullConfig = {};
+
+  /* ── Sort ── */
+
+  let currentPrices = [];
+  let sortCol = null, sortDir = 1;
+
+  document.querySelectorAll("thead th[data-col]").forEach(function (th) {
+    th.addEventListener("click", function () {
+      const col = th.getAttribute("data-col");
+      sortDir = (sortCol === col) ? -sortDir : (col === "symbol" ? 1 : -1);
+      sortCol = col;
+      document.querySelectorAll("thead th").forEach(function (h) { h.classList.remove("sort-asc","sort-desc"); });
+      th.classList.add(sortDir === 1 ? "sort-asc" : "sort-desc");
+      renderTable(currentPrices);
+    });
+  });
+
+  function sortedPrices(arr) {
+    if (!sortCol) return arr.slice();
+    return arr.slice().sort(function (a, b) {
+      const va = a[sortCol], vb = b[sortCol];
+      return typeof va === "string"
+        ? sortDir * va.localeCompare(vb)
+        : sortDir * ((Number(va) || 0) - (Number(vb) || 0));
+    });
+  }
+
   const activeSpikes = {};
+  let selectedRow = null;
 
-  function updatePriceTable(prices, newAlertSymbols) {
-    if (!Array.isArray(prices)) return;
+  /* ── Symbol add / remove ── */
 
-    prices.forEach(function (item) {
+  function saveSymbols(newSymbols) {
+    var payload = Object.assign({}, fullConfig, { symbols: newSymbols });
+    postConfig(payload).then(function () {
+      fullConfig.symbols = newSymbols;
+      currentPrices = currentPrices.filter(function (p) { return newSymbols.indexOf(p.symbol) !== -1; });
+      renderTable(currentPrices);
+    }).catch(function () {});
+  }
+
+  function removeSymbol(sym) {
+    var newSyms = (fullConfig.symbols || []).filter(function (s) { return s !== sym; });
+    saveSymbols(newSyms);
+  }
+
+  function showAddInput(cell) {
+    while (cell.firstChild) cell.removeChild(cell.firstChild);
+
+    var wrap = document.createElement("div");
+    wrap.style.cssText = "display:flex;align-items:center;gap:8px;";
+
+    var input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = t("tokenPlaceholder");
+    input.className = "add-token-input";
+
+    var ok = document.createElement("button");
+    ok.className = "add-token-confirm";
+    var okIcon = document.createElement("i");
+    okIcon.className = "fa-solid fa-check";
+    ok.appendChild(okIcon);
+
+    var cancel = document.createElement("button");
+    cancel.className = "add-token-cancel";
+    var cancelIcon = document.createElement("i");
+    cancelIcon.className = "fa-solid fa-xmark";
+    cancel.appendChild(cancelIcon);
+
+    var hint = document.createElement("span");
+    hint.style.cssText = "font-size:11px;color:var(--muted);";
+
+    function doAdd() {
+      var sym = input.value.trim().toUpperCase();
+      if (!sym) return;
+      var existing = fullConfig.symbols || [];
+      if (existing.indexOf(sym) !== -1) {
+        hint.textContent = sym + " " + t("alreadyExists");
+        hint.style.color = "var(--red)";
+        return;
+      }
+      saveSymbols(existing.concat([sym]));
+    }
+
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "Enter")  doAdd();
+      if (e.key === "Escape") renderTable(currentPrices);
+    });
+    ok.addEventListener("click", doAdd);
+    cancel.addEventListener("click", function () { renderTable(currentPrices); });
+
+    wrap.appendChild(input);
+    wrap.appendChild(ok);
+    wrap.appendChild(cancel);
+    wrap.appendChild(hint);
+    cell.appendChild(wrap);
+    input.focus();
+  }
+
+  function renderTable(prices) {
+    while (priceBody.firstChild) priceBody.removeChild(priceBody.firstChild);
+    sortedPrices(prices).forEach(function (item) {
       if (!item || !item.symbol) return;
-
       const sym     = String(item.symbol);
       const isSpike = !!item.spike_alert;
+      const tr      = document.createElement("tr");
+      tr.className  = isSpike ? "spike-alert" : "";
+      if (selectedRow === sym) tr.classList.add("selected");
 
-      // Detect NEW spike (not active before)
-      const isNewSpike = isSpike && !activeSpikes[sym];
-      activeSpikes[sym] = isSpike;
-
-      if (isNewSpike) {
-        beep();
-        sendNotification(
-          "Spike Alert: " + sym,
-          sym + " " + formatPct(item.change_spike_pct) + " spike detected"
-        );
-      }
-
-      let row = rowMap[sym];
-      if (!row) {
-        row = document.createElement("tr");
-        priceBody.appendChild(row);
-        rowMap[sym] = row;
-      }
-
-      // Clear row
-      while (row.firstChild) row.removeChild(row.firstChild);
-
-      // spike-alert class
-      if (isSpike) {
-        row.className = "spike-alert";
-      } else {
-        row.className = "";
-      }
-
-      // Symbol cell
       const tdSym = document.createElement("td");
-      tdSym.textContent = sym;
-      row.appendChild(tdSym);
+      tdSym.appendChild(tokenLogo(sym));
+      tdSym.appendChild(document.createTextNode(sym));
+      const removeBtn = document.createElement("button");
+      removeBtn.className = "remove-btn";
+      removeBtn.title = t("removeToken");
+      var rmIcon = document.createElement("i");
+      rmIcon.className = "fa-solid fa-xmark";
+      removeBtn.appendChild(rmIcon);
+      removeBtn.addEventListener("click", function (e) { e.stopPropagation(); removeSymbol(sym); });
+      tdSym.appendChild(removeBtn);
+      tr.appendChild(tdSym);
+      tr.appendChild(td(formatPrice(item.usdt, "$")));
+      tr.appendChild(td(formatPrice(item.eur, "\u20AC")));
+      const dp = Number(item.change_day_pct);
+      tr.appendChild(td(formatPct(item.change_day_pct), isNaN(dp) ? "" : dp >= 0 ? "positive" : "negative"));
+      const sp = Number(item.change_spike_pct);
+      tr.appendChild(td(formatPct(item.change_spike_pct) + (isSpike ? " \uD83D\uDEA8" : ""), isNaN(sp) ? "" : sp >= 0 ? "positive" : "negative"));
 
-      // USDT
-      row.appendChild(td(formatNum(item.usdt)));
-
-      // EUR
-      row.appendChild(td(formatNum(item.eur)));
-
-      // % Day
-      const dayPct = Number(item.change_day_pct);
-      const dayClass = isNaN(dayPct) ? "" : (dayPct >= 0 ? "positive" : "negative");
-      row.appendChild(td(formatPct(item.change_day_pct), dayClass));
-
-      // % Spike
-      const spikePct = Number(item.change_spike_pct);
-      const spikeClass = isNaN(spikePct) ? "" : (spikePct >= 0 ? "positive" : "negative");
-      const spikeText = formatPct(item.change_spike_pct) + (isSpike ? " \uD83D\uDEA8" : "");
-      row.appendChild(td(spikeText, spikeClass));
+      priceBody.appendChild(tr);
     });
+
+    var addRow = document.createElement("tr");
+    addRow.id = "add-token-row";
+    var addCell = document.createElement("td");
+    addCell.className = "add-token-cell";
+    addCell.colSpan = 5;
+    var addBtn = document.createElement("button");
+    addBtn.className = "add-token-btn";
+    var plusIcon = document.createElement("i");
+    plusIcon.className = "fa-solid fa-plus";
+    plusIcon.style.marginRight = "6px";
+    addBtn.appendChild(plusIcon);
+    addBtn.appendChild(document.createTextNode(t("addToken")));
+    addBtn.addEventListener("click", function (e) { e.stopPropagation(); showAddInput(addCell); });
+    addCell.appendChild(addBtn);
+    addRow.appendChild(addCell);
+    priceBody.appendChild(addRow);
   }
 
-  /* ------------------------------------------------------------------ */
-  /* Alert history                                                       */
-  /* ------------------------------------------------------------------ */
+  function updatePriceTable(prices) {
+    if (!Array.isArray(prices)) return;
+    prices.forEach(function (item) {
+      if (!item || !item.symbol) return;
+      const sym = String(item.symbol);
+      const isSpike = !!item.spike_alert;
+      if (isSpike && !activeSpikes[sym]) {
+        beep();
+        notify("Spike: " + sym, sym + " " + formatPct(item.change_spike_pct));
+      }
+      activeSpikes[sym] = isSpike;
+    });
+    currentPrices = prices;
+    tableReady = true;
+    renderTable(prices);
+  }
 
-  const alertList  = document.getElementById("alert-list");
-  const alertEmpty = document.getElementById("alert-empty");
-  const MAX_ALERTS = 20;
+  /* ── Row click → chart ── */
+
+  priceBody.addEventListener("click", function (evt) {
+    const row = evt.target.closest("tr");
+    if (!row || row.classList.contains("skeleton-row") || row.id === "add-token-row") return;
+    const sym = row.cells[0] && row.cells[0].textContent.trim();
+    if (!sym) return;
+
+    if (selectedRow === sym) {
+      selectedRow = null;
+      chartCard.style.display = "none";
+      renderTable(currentPrices);
+      return;
+    }
+    selectedRow = sym;
+    renderTable(currentPrices);
+    openChart(sym);
+  });
+
+  /* ── Chart ── */
+
+  const chartCard     = document.getElementById("chart-card");
+  const chartTitle    = document.getElementById("chart-title");
+  const chartCanvas   = document.getElementById("price-chart");
+  const chartTooltip  = document.getElementById("chart-tooltip");
+  const chartSkeleton = document.getElementById("chart-skeleton");
+  const chartCloseBtn = document.getElementById("chart-close");
+
+  let chartSym      = null;
+  let chartInterval = "5m";
+  let chartCandles  = [];
+
+  document.querySelectorAll(".tf-btn").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      document.querySelectorAll(".tf-btn").forEach(function (b) { b.classList.remove("active"); });
+      btn.classList.add("active");
+      chartInterval = btn.getAttribute("data-tf");
+      if (chartSym) loadChart(chartSym, chartInterval);
+    });
+  });
+
+  chartCloseBtn.addEventListener("click", function () {
+    chartCard.style.display = "none";
+    chartSym = null;
+    selectedRow = null;
+    renderTable(currentPrices);
+  });
+
+  function openChart(sym) {
+    chartSym = sym;
+    chartCard.style.display = "";
+    setTimeout(function () { chartCard.scrollIntoView({ behavior: "smooth", block: "nearest" }); }, 40);
+    loadChart(sym, chartInterval);
+  }
+
+  function showChartSkeleton(on) {
+    chartSkeleton.style.display = on ? "flex" : "none";
+  }
+
+  function loadChart(sym, interval) {
+    chartTitle.textContent = sym + " / " + interval;
+    showChartSkeleton(true);
+    fetch("/chart/" + encodeURIComponent(sym) + "?interval=" + interval + "&limit=120")
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        chartCandles = data;
+        showChartSkeleton(false);
+        resizeAndDraw();
+      })
+      .catch(function () {
+        showChartSkeleton(false);
+        chartTitle.textContent = sym + t("chartError");
+      });
+  }
+
+  function resizeAndDraw() {
+    const dpr = window.devicePixelRatio || 1;
+    const w   = chartCanvas.parentElement.clientWidth;
+    const h   = 380;
+    chartCanvas.width  = w * dpr;
+    chartCanvas.height = h * dpr;
+    chartCanvas.style.height = h + "px";
+    const ctx = chartCanvas.getContext("2d");
+    ctx.scale(dpr, dpr);
+    drawChart(ctx, w, h, chartCandles);
+  }
+
+  function drawChart(ctx, W, H, candles) {
+    var cs        = getComputedStyle(document.documentElement);
+    var chartBg   = cs.getPropertyValue('--chart-bg').trim();
+    var chartGrid = cs.getPropertyValue('--chart-grid').trim();
+    var chartText = cs.getPropertyValue('--chart-text').trim();
+    var chartVol  = cs.getPropertyValue('--chart-vol').trim();
+
+    const PAD   = { top: 16, right: 12, bottom: 32, left: 72 };
+    const GAP   = 8;
+    const VOL_R = 0.22;
+    const uw    = W - PAD.left - PAD.right;
+    const uh    = H - PAD.top  - PAD.bottom;
+    const pH    = uh * (1 - VOL_R) - GAP / 2;
+    const vH    = uh * VOL_R       - GAP / 2;
+    const pTop  = PAD.top;
+    const vTop  = PAD.top + pH + GAP;
+
+    ctx.fillStyle = chartBg;
+    ctx.fillRect(0, 0, W, H);
+
+    if (!candles || candles.length === 0) {
+      ctx.fillStyle = chartText; ctx.font = "13px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("—", W / 2, H / 2);
+      return;
+    }
+
+    const n       = candles.length;
+    const cw      = uw / n;
+    const bw      = Math.max(1, cw * 0.65);
+    const minLow  = Math.min.apply(null, candles.map(function (c) { return c.low; }));
+    const maxHigh = Math.max.apply(null, candles.map(function (c) { return c.high; }));
+    const pRange  = maxHigh - minLow || 1;
+    const maxVol  = Math.max.apply(null, candles.map(function (c) { return c.volume; })) || 1;
+
+    function py(p) { return pTop + pH - ((p - minLow) / pRange) * pH; }
+    function cx(i) { return PAD.left + i * cw + cw / 2; }
+
+    ctx.strokeStyle = chartGrid; ctx.lineWidth = 1;
+    for (let i = 0; i <= 5; i++) {
+      const y = pTop + (pH / 5) * i;
+      ctx.beginPath(); ctx.moveTo(PAD.left, y); ctx.lineTo(PAD.left + uw, y); ctx.stroke();
+      const p = maxHigh - (pRange / 5) * i;
+      ctx.fillStyle = chartText; ctx.font = "10px monospace";
+      ctx.textAlign = "right";
+      ctx.fillText(formatNum(p), PAD.left - 4, y + 3);
+    }
+
+    ctx.fillStyle = chartVol;
+    ctx.fillRect(PAD.left, vTop, uw, vH);
+
+    candles.forEach(function (c, i) {
+      const green = c.close >= c.open;
+      const color = green ? "#3fb950" : "#f85149";
+      const x     = cx(i);
+      ctx.strokeStyle = color; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x, py(c.high)); ctx.lineTo(x, py(c.low)); ctx.stroke();
+      ctx.fillStyle = color;
+      const bTop = py(Math.max(c.open, c.close));
+      ctx.fillRect(x - bw / 2, bTop, bw, Math.max(1, py(Math.min(c.open, c.close)) - bTop));
+      ctx.globalAlpha = 0.55;
+      const vh = (c.volume / maxVol) * vH;
+      ctx.fillRect(x - bw / 2, vTop + vH - vh, bw, vh);
+      ctx.globalAlpha = 1;
+    });
+
+    const every = Math.max(1, Math.floor(n / 8));
+    ctx.fillStyle = chartText; ctx.font = "10px monospace"; ctx.textAlign = "center";
+    candles.forEach(function (c, i) {
+      if (i % every !== 0) return;
+      const d = new Date(c.time);
+      ctx.fillText(
+        d.getHours().toString().padStart(2,"0") + ":" + d.getMinutes().toString().padStart(2,"0"),
+        cx(i), pTop + pH + GAP + vH + 14
+      );
+    });
+
+    ctx.fillStyle = chartText; ctx.font = "9px monospace"; ctx.textAlign = "left";
+    ctx.fillText("VOL", PAD.left + 4, vTop + 10);
+  }
+
+  chartCanvas.addEventListener("mousemove", function (evt) {
+    if (!chartCandles || !chartCandles.length) return;
+    const rect = chartCanvas.getBoundingClientRect();
+    const mx   = evt.clientX - rect.left;
+    const cw   = (rect.width - 84) / chartCandles.length;
+    const idx  = Math.floor((mx - 72) / cw);
+    if (idx < 0 || idx >= chartCandles.length) { chartTooltip.style.display = "none"; return; }
+    const c = chartCandles[idx];
+    const d = new Date(c.time);
+    const ts = d.toLocaleDateString() + " " + d.getHours().toString().padStart(2,"0") + ":" + d.getMinutes().toString().padStart(2,"0");
+    chartTooltip.textContent = [
+      ts,
+      "O: " + formatNum(c.open),
+      "H: " + formatNum(c.high),
+      "L: " + formatNum(c.low),
+      "C: " + formatNum(c.close),
+      "V: " + new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(c.volume),
+    ].join("  |  ");
+    chartTooltip.style.color   = c.close >= c.open ? "#3fb950" : "#f85149";
+    chartTooltip.style.display = "block";
+  });
+  chartCanvas.addEventListener("mouseleave", function () { chartTooltip.style.display = "none"; });
+  window.addEventListener("resize", function () { if (chartSym && chartCandles.length) resizeAndDraw(); });
+
+  /* ── Alerts ── */
+
+  const alertList   = document.getElementById("alert-list");
+  const alertEmpty  = document.getElementById("alert-empty");
+  const alertHeader = document.getElementById("alert-list-header");
 
   function addAlerts(alerts) {
-    if (!Array.isArray(alerts) || alerts.length === 0) return;
-
-    alerts.forEach(function (a) {
+    if (!Array.isArray(alerts) || !alerts.length) return;
+    // sort descending (newest first), insert each before the original top so batch order is preserved
+    const sorted = alerts.slice().sort(function (a, b) { return (b.timestamp || 0) - (a.timestamp || 0); });
+    const anchor = alertList.firstChild || null;
+    sorted.forEach(function (a) {
       if (!a) return;
+      const sym = String(a.symbol || "--");
+      const li  = document.createElement("li");
 
-      const li = document.createElement("li");
+      const ti = document.createElement("span"); ti.className = "alert-time"; ti.textContent = formatTs(a.timestamp); li.appendChild(ti);
 
-      const timeSpan = document.createElement("span");
-      timeSpan.className = "alert-time";
-      timeSpan.textContent = formatTs(a.timestamp);
-      li.appendChild(timeSpan);
+      const s  = document.createElement("span"); s.className = "alert-symbol";
+      s.appendChild(tokenLogo(sym));
+      s.appendChild(document.createTextNode(sym));
+      li.appendChild(s);
 
-      const symSpan = document.createElement("span");
-      symSpan.className = "alert-symbol";
-      symSpan.textContent = String(a.symbol || "--");
-      li.appendChild(symSpan);
+      const p  = document.createElement("span");
+      p.className = "alert-pct " + (Number(a.pct) >= 0 ? "positive" : "negative");
+      p.textContent = formatPct(a.pct);
+      li.appendChild(p);
 
-      const pctSpan = document.createElement("span");
-      pctSpan.className = "alert-pct " + (Number(a.pct) >= 0 ? "positive" : "negative");
-      pctSpan.textContent = formatPct(a.pct);
-      li.appendChild(pctSpan);
+      const w  = document.createElement("span"); w.className = "alert-win"; w.textContent = a.window_min ? a.window_min + t("windowMin") : ""; li.appendChild(w);
 
-      const winSpan = document.createElement("span");
-      winSpan.className = "alert-win";
-      winSpan.textContent = a.window_min ? (String(a.window_min) + "m window") : "";
-      li.appendChild(winSpan);
-
-      // prepend so newest is first
-      if (alertList.firstChild) {
-        alertList.insertBefore(li, alertList.firstChild);
-      } else {
-        alertList.appendChild(li);
-      }
-
-      // trim to max
-      while (alertList.children.length > MAX_ALERTS) {
-        alertList.removeChild(alertList.lastChild);
-      }
+      alertList.insertBefore(li, anchor);
+      while (alertList.children.length > 20) alertList.removeChild(alertList.lastChild);
     });
-
-    alertEmpty.style.display = "none";
-    alertList.style.display  = "block";
+    alertEmpty.style.display  = "none";
+    alertHeader.style.display = "grid";
+    alertList.style.display   = "block";
   }
 
-  /* ------------------------------------------------------------------ */
-  /* Config panel                                                        */
-  /* ------------------------------------------------------------------ */
+  /* ── Config Modal ── */
 
-  const configToggle = document.getElementById("config-toggle");
-  const configPanel  = document.getElementById("config-panel");
-  const configArrow  = document.getElementById("config-arrow");
-  const configMsg    = document.getElementById("config-msg");
-  const cfgInterval  = document.getElementById("cfg-interval");
-  const cfgThreshold = document.getElementById("cfg-threshold");
-  const cfgWindow    = document.getElementById("cfg-window");
-  const cfgReset     = document.getElementById("cfg-reset");
-  const configSave   = document.getElementById("config-save");
+  const modalOverlay    = document.getElementById("modal-overlay");
+  const modalClose      = document.getElementById("modal-close");
+  const configBtn       = document.getElementById("config-btn");
+  const configSave      = document.getElementById("config-save");
+  const configMsg       = document.getElementById("config-msg");
+  const cfgInterval     = document.getElementById("cfg-interval");
+  const cfgThreshold    = document.getElementById("cfg-threshold");
+  const cfgWindow       = document.getElementById("cfg-window");
+  const cfgReset        = document.getElementById("cfg-reset");
+  const cfgTableFont    = document.getElementById("cfg-table-font");
+  const cfgTableFontVal = document.getElementById("cfg-table-font-val");
+  const cfgUiFont       = document.getElementById("cfg-ui-font");
+  const cfgUiFontVal    = document.getElementById("cfg-ui-font-val");
 
-  configToggle.addEventListener("click", function () {
-    const open = configPanel.classList.toggle("open");
-    configArrow.classList.toggle("open", open);
+  /* ── Font sizes ── */
+
+  function applyTableFont(px) {
+    document.documentElement.style.setProperty("--table-font", px + "px");
+    cfgTableFont.value = px;
+    cfgTableFontVal.textContent = px + "px";
+  }
+
+  function applyUiFont(px) {
+    document.documentElement.style.setProperty("--ui-font", px + "px");
+    cfgUiFont.value = px;
+    cfgUiFontVal.textContent = px + "px";
+  }
+
+  applyTableFont(Number(localStorage.getItem("tableFontSize") || 13));
+  applyUiFont(Number(localStorage.getItem("uiFontSize") || 13));
+
+  cfgTableFont.addEventListener("input", function () { applyTableFont(Number(this.value)); });
+  cfgUiFont.addEventListener("input",   function () { applyUiFont(Number(this.value)); });
+
+  /* ── Language dropdown ── */
+
+  var langDropdown = document.getElementById("lang-dropdown");
+  var langBtn      = document.getElementById("lang-btn");
+  var langMenu     = document.getElementById("lang-menu");
+
+  langBtn.addEventListener("click", function (e) {
+    e.stopPropagation();
+    langDropdown.classList.toggle("open");
   });
+
+  document.addEventListener("click", function (e) {
+    if (!langDropdown.contains(e.target)) langDropdown.classList.remove("open");
+  });
+
+  langMenu.addEventListener("click", function (e) {
+    var opt = e.target.closest(".lang-opt");
+    if (!opt) return;
+    langDropdown.classList.remove("open");
+    applyLang(opt.getAttribute("data-lang"));
+    renderTable(currentPrices);
+  });
+
+  /* ── Init lang ── */
+  applyLang(currentLang);
+
+  /* ── Modal open/close ── */
+
+  function openModal()  { modalOverlay.classList.add("open"); }
+  function closeModal() { modalOverlay.classList.remove("open"); }
+
+  configBtn.addEventListener("click", openModal);
+  modalClose.addEventListener("click", closeModal);
+  modalOverlay.addEventListener("click", function (e) { if (e.target === modalOverlay) closeModal(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeModal(); });
+
+  /* ── Server config ── */
 
   function loadConfig() {
     fetch("/config")
       .then(function (r) { return r.json(); })
-      .then(function (data) {
-        if (data.poll_interval  !== undefined) cfgInterval.value  = data.poll_interval;
-        if (data.alert_threshold !== undefined) cfgThreshold.value = data.alert_threshold;
-        if (data.alert_window_min !== undefined) cfgWindow.value   = data.alert_window_min;
-        if (data.reset_hour      !== undefined) cfgReset.value     = data.reset_hour;
+      .then(function (d) {
+        fullConfig = d;
+        if (d.poll_interval    !== undefined) cfgInterval.value  = d.poll_interval;
+        if (d.alert_threshold  !== undefined) cfgThreshold.value = d.alert_threshold;
+        if (d.alert_window_min !== undefined) cfgWindow.value    = d.alert_window_min;
+        if (d.reset_hour       !== undefined) cfgReset.value     = d.reset_hour;
       })
       .catch(function () {});
   }
 
+  function postConfig(payload) {
+    return fetch("/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }).then(function (r) { return r.json(); });
+  }
+
   configSave.addEventListener("click", function () {
-    const payload = {};
+    localStorage.setItem("tableFontSize", cfgTableFont.value);
+    localStorage.setItem("uiFontSize",    cfgUiFont.value);
+    localStorage.setItem("uiLang",        currentLang);
+
+    var payload = Object.assign({}, fullConfig);
     if (cfgInterval.value  !== "") payload.poll_interval    = Number(cfgInterval.value);
     if (cfgThreshold.value !== "") payload.alert_threshold  = Number(cfgThreshold.value);
     if (cfgWindow.value    !== "") payload.alert_window_min = Number(cfgWindow.value);
     if (cfgReset.value     !== "") payload.reset_hour       = Number(cfgReset.value);
 
-    fetch("/config", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        configMsg.textContent = data.status === "ok" ? "Saved." : "Error saving.";
-        configMsg.style.color = data.status === "ok"
-          ? "var(--green)"
-          : "var(--red)";
-        setTimeout(function () { configMsg.textContent = ""; }, 2500);
+    postConfig(payload)
+      .then(function (d) {
+        fullConfig = payload;
+        configMsg.textContent = d.status === "ok" ? t("saved") : t("saveError");
+        configMsg.style.color = d.status === "ok" ? "var(--green)" : "var(--red)";
+        if (d.status === "ok") setTimeout(closeModal, 800);
+        setTimeout(function () { configMsg.textContent = ""; }, 3000);
       })
       .catch(function () {
-        configMsg.textContent = "Network error.";
+        configMsg.textContent = t("networkError");
         configMsg.style.color = "var(--red)";
-        setTimeout(function () { configMsg.textContent = ""; }, 2500);
       });
   });
 
-  /* ------------------------------------------------------------------ */
-  /* WebSocket with auto-reconnect                                       */
-  /* ------------------------------------------------------------------ */
+  /* ── WebSocket ── */
 
-  let ws       = null;
-  let retryMs  = 2000;
-  const maxRetryMs = 30000;
+  let ws = null, retryMs = 2000;
 
   function connect() {
-    const url = "ws://" + location.host + "/ws";
-    ws = new WebSocket(url);
-
-    ws.addEventListener("open", function () {
-      setConnected(true);
-      retryMs = 2000;
-    });
-
-    ws.addEventListener("close", function () {
-      setConnected(false);
-      ws = null;
-      setTimeout(connect, retryMs);
-      retryMs = Math.min(retryMs * 2, maxRetryMs);
-    });
-
-    ws.addEventListener("error", function () {
-      // close event will follow and trigger reconnect
-    });
-
+    ws = new WebSocket("ws://" + location.host + "/ws");
+    ws.addEventListener("open",  function () { setConnected(true);  retryMs = 2000; });
+    ws.addEventListener("close", function () { setConnected(false); ws = null; setTimeout(connect, retryMs); retryMs = Math.min(retryMs * 2, 30000); });
+    ws.addEventListener("error", function () {});
     ws.addEventListener("message", function (evt) {
-      let data;
-      try { data = JSON.parse(evt.data); } catch (_) { return; }
+      let data; try { data = JSON.parse(evt.data); } catch (_) { return; }
       if (!data) return;
-
-      // Update timestamp
-      if (data.timestamp) {
-        const span = document.createElement("span");
-        span.textContent = "Last update: " + formatTs(data.timestamp);
-        lastUpdate.textContent = "";
-        lastUpdate.appendChild(span);
-      }
-
-      // Update prices
-      if (data.prices) {
-        updatePriceTable(data.prices);
-      }
-
-      // New alerts
-      if (data.alerts && data.alerts.length > 0) {
-        addAlerts(data.alerts);
-      }
+      if (data.timestamp) lastUpdate.textContent = t("lastUpdatePrefix") + formatTs(data.timestamp);
+      if (data.prices)    updatePriceTable(data.prices);
+      if (data.alerts && data.alerts.length) addAlerts(data.alerts);
     });
   }
 
-  /* ------------------------------------------------------------------ */
-  /* Init                                                                */
-  /* ------------------------------------------------------------------ */
-
-  requestNotifPermission();
   loadConfig();
   connect();
-
-  // Resume AudioContext on first user interaction (browser policy)
-  document.addEventListener("click", function () {
-    const ctx = getAudioCtx();
-    if (ctx && ctx.state === "suspended") {
-      ctx.resume();
-    }
-  }, { once: false });
 
 }());
 </script>

@@ -1,21 +1,21 @@
-reset_hour: 0
-poll_interval: 5
-alert_threshold: 3.0
+alert_threshold: 1
 alert_window_min: 5
-symbols:
-  - BNB
-  - BTC
-  - VET
-  - VTHO
-  - ETH
 email:
   enabled: false
+  password: ''
   smtp_host: smtp.gmail.com
   smtp_port: 587
-  user: ""
-  password: ""
-  to: ""
+  to: ''
+  user: ''
+poll_interval: 10
+reset_hour: 0
+symbols:
+- BNB
+- BTC
+- VET
+- VTHO
+- ETH
 telegram:
+  bot_token: ''
+  chat_id: ''
   enabled: false
-  bot_token: ""
-  chat_id: ""

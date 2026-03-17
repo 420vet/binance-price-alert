@@ -20,7 +20,7 @@ class BinanceClient:
             return float(r.json()["price"])
 
     async def get_prices(self) -> Dict[str, dict]:
-        pairs = [SYMBOL_MAP[s] for s in self.symbols if s in SYMBOL_MAP]
+        pairs = [SYMBOL_MAP.get(s, s + "USDT") for s in self.symbols]
         pairs.append("EURUSDT")
 
         tasks = {sym: self._fetch_price(sym) for sym in pairs}
@@ -33,9 +33,7 @@ class BinanceClient:
 
         prices = {}
         for sym in self.symbols:
-            pair = SYMBOL_MAP.get(sym)
-            if not pair:
-                continue
+            pair = SYMBOL_MAP.get(sym, sym + "USDT")
             val = raw.get(pair, 0.0)
             if isinstance(val, Exception):
                 val = 0.0
@@ -45,9 +43,29 @@ class BinanceClient:
             }
         return prices
 
+    async def get_klines(self, symbol: str, interval: str = "5m", limit: int = 100) -> list:
+        pair = SYMBOL_MAP.get(symbol.upper(), symbol.upper() + "USDT")
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.get(
+                f"{BASE_URL}/klines",
+                params={"symbol": pair, "interval": interval, "limit": limit}
+            )
+            r.raise_for_status()
+            return [
+                {
+                    "time":   k[0],
+                    "open":   float(k[1]),
+                    "high":   float(k[2]),
+                    "low":    float(k[3]),
+                    "close":  float(k[4]),
+                    "volume": float(k[5]),
+                }
+                for k in r.json()
+            ]
+
     async def get_price_at_open(self, symbol: str, reset_hour: int) -> float:
         from datetime import datetime, timedelta
-        pair = SYMBOL_MAP.get(symbol, "BTCUSDT")
+        pair = SYMBOL_MAP.get(symbol, symbol + "USDT")
         now = datetime.now()
         open_dt = now.replace(hour=reset_hour, minute=0, second=0, microsecond=0)
         if open_dt > now:
